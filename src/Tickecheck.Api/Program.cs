@@ -1,15 +1,19 @@
 using System.Text;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using Tickecheck.Api.Auth;
 using Tickecheck.Api.ErrorHandling;
+using Tickecheck.Api.Hubs;
 using Tickecheck.Application;
 using Tickecheck.Application.Abstractions;
 using Tickecheck.Application.Auth;
 using Tickecheck.Infrastructure;
 using Tickecheck.Infrastructure.Auth;
+using Tickecheck.Infrastructure.Persistence;
+using Tickecheck.Infrastructure.Persistence.Seed;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +40,9 @@ builder.Services.AddScoped<ICurrentUser, HttpCurrentUser>();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
+builder.Services.AddSignalR();
+builder.Services.AddScoped<ITicketNotifier, SignalRTicketNotifier>();
+
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 if (jwtOptions.SigningKey.Length < 32)
 {
@@ -60,6 +67,24 @@ builder.Services
             RoleClaimType = AppClaims.Role,
             // The default tolerance is 5 minutes, too much for a 15-minute token.
             ClockSkew = TimeSpan.FromSeconds(30)
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            // Browsers cannot send an Authorization header when opening a WebSocket,
+            // so SignalR sends the token in the query string. It is accepted from
+            // there only for the hub, never for the regular API endpoints.
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken)
+                    && context.HttpContext.Request.Path.StartsWithSegments(NotificationsHub.Path))
+                {
+                    context.Token = accessToken;
+                }
+
+                return Task.CompletedTask;
+            }
         };
     });
 
@@ -90,8 +115,28 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationsHub>(NotificationsHub.Path);
+
+await PrepareDatabaseAsync(app);
 
 app.Run();
+
+// Applying migrations at startup keeps the demo simple (one command to run everything).
+// With several instances of the API it would be a separate deployment step instead.
+static async Task PrepareDatabaseAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+
+    if (app.Configuration.GetValue<bool>("Database:MigrateOnStartup"))
+    {
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+    }
+
+    if (app.Configuration.GetValue<bool>("Database:SeedDemoData"))
+    {
+        await scope.ServiceProvider.GetRequiredService<DbSeeder>().SeedAsync();
+    }
+}
 
 // Makes the Program class visible to the integration tests (WebApplicationFactory<Program>).
 public partial class Program;
