@@ -9,7 +9,9 @@ using Tickecheck.Domain.Users;
 
 namespace Tickecheck.Infrastructure.Persistence;
 
-public class AppDbContext : DbContext
+// IUnitOfWork is implemented by the DbContext itself: it already tracks every change
+// of the request and saves them in one transaction.
+public class AppDbContext : DbContext, IUnitOfWork
 {
     private readonly ITenantProvider _tenantProvider;
 
@@ -21,6 +23,7 @@ public class AppDbContext : DbContext
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<Comment> Comments => Set<Comment>();
