@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tickecheck.IntegrationTests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tickecheck.Application.Tests", "tests\Tickecheck.Application.Tests\Tickecheck.Application.Tests.csproj", "{CF566379-6B12-419D-8FD0-A030F0C5E14F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tickecheck.Web", "src\Tickecheck.Web\Tickecheck.Web.csproj", "{CAE707C4-1AC5-470B-B29C-1E306A811B23}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -115,6 +117,18 @@ Global
 		{CF566379-6B12-419D-8FD0-A030F0C5E14F}.Release|x64.Build.0 = Release|Any CPU
 		{CF566379-6B12-419D-8FD0-A030F0C5E14F}.Release|x86.ActiveCfg = Release|Any CPU
 		{CF566379-6B12-419D-8FD0-A030F0C5E14F}.Release|x86.Build.0 = Release|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Debug|x64.Build.0 = Debug|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Debug|x86.Build.0 = Debug|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Release|x64.ActiveCfg = Release|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Release|x64.Build.0 = Release|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Release|x86.ActiveCfg = Release|Any CPU
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -127,5 +141,6 @@ Global
 		{CAC77C1A-7506-498F-80F1-376620FDF243} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{F12D8D6C-41AE-447D-ABBE-2FC2A53565FA} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{CF566379-6B12-419D-8FD0-A030F0C5E14F} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{CAE707C4-1AC5-470B-B29C-1E306A811B23} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

@@ -1,0 +1,62 @@
+@page "/tenants"
+@attribute [Authorize(Roles = "SuperAdmin")]
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Companies - Tickecheck</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Companies</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudText Typo="Typo.h6">Add a company</MudText>
+    <MudText Typo="Typo.caption">A company is created together with its first admin.</MudText>
+    <MudGrid Class="mt-1">
+        <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_name" Label="Company name" /></MudItem>
+        <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_adminFullName" Label="Admin full name" /></MudItem>
+        <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_adminEmail" Label="Admin email" /></MudItem>
+        <MudItem xs="12" sm="6" md="2"><MudTextField @bind-Value="_adminPassword" Label="Admin password" InputType="InputType.Password" /></MudItem>
+        <MudItem xs="12" md="1" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync">Add</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudTable Items="_tenants" Dense="true" Hover="true" Elevation="1">
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Created</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="Created">@Display.Date(context.CreatedAt)</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<TenantDto> _tenants = [];
+    private string _name = string.Empty;
+    private string _adminFullName = string.Empty;
+    private string _adminEmail = string.Empty;
+    private string _adminPassword = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tenants = await Api.GetAsync<List<TenantDto>>("api/tenants");
+    }
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            var request = new CreateTenantRequest(_name, _adminEmail, _adminFullName, _adminPassword);
+            var tenant = await Api.PostAsync<TenantDto>("api/tenants", request);
+            _tenants.Add(tenant);
+            _name = _adminFullName = _adminEmail = _adminPassword = string.Empty;
+            Snackbar.Add("Company created.", Severity.Success);
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+    }
+}

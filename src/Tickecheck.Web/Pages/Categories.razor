@@ -1,0 +1,48 @@
+@page "/categories"
+@attribute [Authorize(Roles = "TenantAdmin")]
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Categories - Tickecheck</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Categories</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudStack Row="true" AlignItems="AlignItems.End">
+        <MudTextField @bind-Value="_name" Label="New category" MaxLength="100" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync">Add</MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudPaper Elevation="1">
+    <MudList T="string">
+        @foreach (var category in _categories)
+        {
+            <MudListItem T="string" Icon="@Icons.Material.Filled.Label">@category.Name</MudListItem>
+        }
+    </MudList>
+</MudPaper>
+
+@code {
+    private List<CategoryDto> _categories = [];
+    private string _name = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await Api.GetAsync<List<CategoryDto>>("api/categories");
+    }
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            var category = await Api.PostAsync<CategoryDto>("api/categories", new CreateCategoryRequest(_name));
+            _categories.Add(category);
+            _name = string.Empty;
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+    }
+}

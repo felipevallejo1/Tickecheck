@@ -1,0 +1,117 @@
+﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject AuthService Auth
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NotificationService Notifications
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+@* MudBlazor needs these providers once, at the top of the app. *@
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <AuthorizeView>
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+                           OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+        </AuthorizeView>
+        <MudText Typo="Typo.h6">Tickecheck</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            <MudText Typo="Typo.body2" Class="mr-4">@context.User.Identity?.Name</MudText>
+            <MudButton Color="Color.Inherit" Variant="Variant.Text" OnClick="LogoutAsync">Sign out</MudButton>
+        </AuthorizeView>
+    </MudAppBar>
+
+    <AuthorizeView>
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
+            <MudNavMenu>
+                @* The menu only hides links. The API still rejects any request outside the role. *@
+                <AuthorizeView Roles="Requester,Agent,TenantAdmin" Context="member">
+                    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.ConfirmationNumber">Tickets</MudNavLink>
+                    <MudNavLink Href="/tickets/new" Icon="@Icons.Material.Filled.Add">New ticket</MudNavLink>
+                </AuthorizeView>
+                <AuthorizeView Roles="Agent,TenantAdmin" Context="staff">
+                    <MudNavLink Href="/dashboard" Icon="@Icons.Material.Filled.BarChart">Dashboard</MudNavLink>
+                </AuthorizeView>
+                <AuthorizeView Roles="TenantAdmin" Context="admin">
+                    <MudNavLink Href="/users" Icon="@Icons.Material.Filled.People">Users</MudNavLink>
+                    <MudNavLink Href="/categories" Icon="@Icons.Material.Filled.Label">Categories</MudNavLink>
+                </AuthorizeView>
+                <AuthorizeView Roles="SuperAdmin" Context="platform">
+                    <MudNavLink Href="/tenants" Icon="@Icons.Material.Filled.Business">Companies</MudNavLink>
+                </AuthorizeView>
+            </MudNavMenu>
+        </MudDrawer>
+    </AuthorizeView>
+
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private Guid? _userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthStateProvider.AuthenticationStateChanged += OnAuthenticationStateChanged;
+        Notifications.TicketAssigned += OnTicketAssigned;
+        Notifications.CommentAdded += OnCommentAdded;
+
+        await SyncNotificationsAsync(await AuthStateProvider.GetAuthenticationStateAsync());
+    }
+
+    private async void OnAuthenticationStateChanged(Task<AuthenticationState> stateTask)
+    {
+        await SyncNotificationsAsync(await stateTask);
+    }
+
+    // The SignalR connection lives exactly as long as the session.
+    private async Task SyncNotificationsAsync(AuthenticationState state)
+    {
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            _userId = state.User.UserId();
+            await Notifications.StartAsync();
+        }
+        else
+        {
+            _userId = null;
+            await Notifications.StopAsync();
+        }
+    }
+
+    private void OnTicketAssigned(TicketAssignedNotification notification)
+    {
+        Snackbar.Add($"You were assigned: {notification.Title}", Severity.Info);
+    }
+
+    private void OnCommentAdded(CommentAddedNotification notification)
+    {
+        // No need to notify people about their own comment.
+        if (notification.AuthorId != _userId)
+        {
+            Snackbar.Add($"New comment on: {notification.TicketTitle}", Severity.Info);
+        }
+    }
+
+    private async Task LogoutAsync()
+    {
+        await Auth.LogoutAsync();
+        Navigation.NavigateTo("/login");
+    }
+
+    public void Dispose()
+    {
+        AuthStateProvider.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+        Notifications.TicketAssigned -= OnTicketAssigned;
+        Notifications.CommentAdded -= OnCommentAdded;
+    }
+}

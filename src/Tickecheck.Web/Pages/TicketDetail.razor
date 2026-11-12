@@ -1,0 +1,357 @@
+@page "/tickets/{Id:guid}"
+@attribute [Authorize(Roles = "Requester,Agent,TenantAdmin")]
+@implements IDisposable
+@inject ApiClient Api
+@inject NotificationService Notifications
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Ticket - Tickecheck</PageTitle>
+
+@if (_ticket is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+    return;
+}
+
+<MudButton Href="/" StartIcon="@Icons.Material.Filled.ArrowBack" Class="mb-2">Back to tickets</MudButton>
+
+<MudGrid>
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-6 mb-4" Elevation="1">
+            @if (_editing)
+            {
+                <MudTextField @bind-Value="_editTitle" Label="Title" Variant="Variant.Outlined" MaxLength="200" Class="mb-3" />
+                <MudTextField @bind-Value="_editDescription" Label="Description" Variant="Variant.Outlined" Lines="5" MaxLength="4000" Class="mb-3" />
+                <MudSelect T="Guid" @bind-Value="_editCategoryId" Label="Category" Variant="Variant.Outlined">
+                    @foreach (var category in _categories)
+                    {
+                        <MudSelectItem T="Guid" Value="@category.Id">@category.Name</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudStack Row="true" Class="mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveEditAsync">Save</MudButton>
+                    <MudButton OnClick="@(() => _editing = false)">Cancel</MudButton>
+                </MudStack>
+            }
+            else
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Start">
+                    <MudText Typo="Typo.h5">@_ticket.Title</MudText>
+                    <MudSpacer />
+                    @if (_ticket.Status != TicketStatus.Closed)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" OnClick="StartEditAsync" />
+                    }
+                </MudStack>
+                <MudStack Row="true" Class="my-2">
+                    <MudChip T="string" Size="Size.Small" Color="@Display.ColorOf(_ticket.Status)">@Display.Label(_ticket.Status)</MudChip>
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@Display.ColorOf(_ticket.Priority)">@_ticket.Priority</MudChip>
+                    @if (_ticket.IsOverdue)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Error">Overdue</MudChip>
+                    }
+                </MudStack>
+                <MudText Style="white-space: pre-wrap">@_ticket.Description</MudText>
+            }
+        </MudPaper>
+
+        <MudPaper Class="pa-6 mb-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-2">Comments</MudText>
+
+            @if (_comments.Count == 0)
+            {
+                <MudText Color="Color.Secondary">No comments yet.</MudText>
+            }
+
+            @foreach (var comment in _comments)
+            {
+                @* Internal notes only arrive from the API for staff; the color makes them stand out. *@
+                <MudPaper Class="pa-3 mb-2" Outlined="true" Style="@(comment.IsInternal ? "background-color: #fff8e1" : null)">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.subtitle2">@comment.AuthorName</MudText>
+                        @if (comment.IsInternal)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning">Internal</MudChip>
+                        }
+                        <MudSpacer />
+                        <MudText Typo="Typo.caption">@Display.Date(comment.CreatedAt)</MudText>
+                    </MudStack>
+                    <MudText Style="white-space: pre-wrap">@comment.Body</MudText>
+                </MudPaper>
+            }
+
+            <MudTextField @bind-Value="_newComment" Label="Write a comment" Variant="Variant.Outlined" Lines="3" MaxLength="4000" Class="mt-4" />
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AddCommentAsync">Add comment</MudButton>
+                @if (_isStaff)
+                {
+                    <MudCheckBox T="bool" @bind-Value="_newCommentIsInternal" Label="Internal note (hidden from the requester)" />
+                }
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Class="pa-6" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-2">History</MudText>
+            @if (_history.Count == 0)
+            {
+                <MudText Color="Color.Secondary">No changes yet.</MudText>
+            }
+            else
+            {
+                <MudSimpleTable Dense="true" Elevation="0">
+                    <thead>
+                        <tr><th>When</th><th>Who</th><th>Change</th><th>From</th><th>To</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var entry in _history)
+                        {
+                            <tr>
+                                <td>@Display.Date(entry.OccurredAt)</td>
+                                <td>@entry.ChangedByName</td>
+                                <td>@Display.Label(entry.ChangeType)</td>
+                                <td>@(entry.OldValue ?? "-")</td>
+                                <td>@(entry.NewValue ?? "-")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </MudSimpleTable>
+            }
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-6 mb-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-2">Details</MudText>
+            <MudText Typo="Typo.body2"><b>Category:</b> @_ticket.CategoryName</MudText>
+            <MudText Typo="Typo.body2"><b>Requester:</b> @_ticket.RequesterName</MudText>
+            <MudText Typo="Typo.body2"><b>Assigned to:</b> @(_ticket.AssignedAgentName ?? "Unassigned")</MudText>
+            <MudText Typo="Typo.body2"><b>Created:</b> @Display.Date(_ticket.CreatedAt)</MudText>
+            <MudText Typo="Typo.body2"><b>Due:</b> @Display.Date(_ticket.DueAt)</MudText>
+            @if (_ticket.ResolvedAt is not null)
+            {
+                <MudText Typo="Typo.body2"><b>Resolved:</b> @Display.Date(_ticket.ResolvedAt.Value)</MudText>
+            }
+            @if (_ticket.ClosedAt is not null)
+            {
+                <MudText Typo="Typo.body2"><b>Closed:</b> @Display.Date(_ticket.ClosedAt.Value)</MudText>
+            }
+        </MudPaper>
+
+        @if (_isStaff)
+        {
+            <MudPaper Class="pa-6 mb-4" Elevation="1">
+                <MudText Typo="Typo.h6" Class="mb-2">Manage</MudText>
+
+                <MudSelect T="Guid?" Value="_ticket.AssignedAgentId" ValueChanged="AssignAsync" Label="Assigned to" Variant="Variant.Outlined" Class="mb-3">
+                    @foreach (var agent in _agents)
+                    {
+                        <MudSelectItem T="Guid?" Value="@agent.Id">@agent.FullName</MudSelectItem>
+                    }
+                </MudSelect>
+
+                @* Every status is offered. The domain decides which changes are valid and
+                   the API answers 409 with the reason when one is not. *@
+                <MudSelect T="TicketStatus" Value="_ticket.Status" ValueChanged="ChangeStatusAsync" Label="Status" Variant="Variant.Outlined" Class="mb-3">
+                    @foreach (var status in Enum.GetValues<TicketStatus>())
+                    {
+                        <MudSelectItem T="TicketStatus" Value="@status">@Display.Label(status)</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudSelect T="TicketPriority" Value="_ticket.Priority" ValueChanged="ChangePriorityAsync" Label="Priority" Variant="Variant.Outlined">
+                    @foreach (var priority in Enum.GetValues<TicketPriority>())
+                    {
+                        <MudSelectItem T="TicketPriority" Value="@priority">@priority</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudPaper>
+        }
+        else if (_ticket.Status == TicketStatus.Resolved)
+        {
+            <MudPaper Class="pa-6 mb-4" Elevation="1">
+                <MudText Class="mb-2">Is the problem still happening?</MudText>
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ReopenAsync">Reopen ticket</MudButton>
+            </MudPaper>
+        }
+
+        <AuthorizeView Roles="TenantAdmin">
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Delete"
+                       OnClick="DeleteAsync">Delete ticket</MudButton>
+        </AuthorizeView>
+    </MudItem>
+</MudGrid>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private TicketDto? _ticket;
+    private List<CommentDto> _comments = [];
+    private List<TicketHistoryDto> _history = [];
+    private List<UserDto> _agents = [];
+    private List<CategoryDto> _categories = [];
+    private bool _isStaff;
+
+    private string _newComment = string.Empty;
+    private bool _newCommentIsInternal;
+
+    private bool _editing;
+    private string _editTitle = string.Empty;
+    private string _editDescription = string.Empty;
+    private Guid _editCategoryId;
+
+    private string Url => $"api/tickets/{Id}";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isStaff = (await AuthState).User.IsStaff();
+        Notifications.CommentAdded += OnCommentAdded;
+
+        try
+        {
+            _ticket = await Api.GetAsync<TicketDto>(Url);
+            await LoadCommentsAndHistoryAsync();
+
+            if (_isStaff)
+            {
+                var users = await Api.GetAsync<List<UserDto>>("api/users");
+                _agents = users.Where(u => u.Role is UserRole.Agent or UserRole.TenantAdmin).ToList();
+            }
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+            Navigation.NavigateTo("/");
+        }
+    }
+
+    private async Task LoadCommentsAndHistoryAsync()
+    {
+        _comments = await Api.GetAsync<List<CommentDto>>($"{Url}/comments");
+        _history = await Api.GetAsync<List<TicketHistoryDto>>($"{Url}/history");
+    }
+
+    // A SignalR event arrives outside Blazor's normal rendering flow, so the component
+    // must be told to re-render with InvokeAsync + StateHasChanged.
+    private void OnCommentAdded(CommentAddedNotification notification)
+    {
+        if (notification.TicketId != Id)
+        {
+            return;
+        }
+
+        _ = InvokeAsync(async () =>
+        {
+            _comments = await Api.GetAsync<List<CommentDto>>($"{Url}/comments");
+            StateHasChanged();
+        });
+    }
+
+    private Task AssignAsync(Guid? agentId)
+    {
+        return agentId is null
+            ? Task.CompletedTask
+            : UpdateTicketAsync(() => Api.PutAsync<TicketDto>($"{Url}/assignee", new AssignTicketRequest(agentId.Value)));
+    }
+
+    private Task ChangeStatusAsync(TicketStatus status)
+    {
+        return UpdateTicketAsync(() => Api.PutAsync<TicketDto>($"{Url}/status", new ChangeStatusRequest(status)));
+    }
+
+    private Task ChangePriorityAsync(TicketPriority priority)
+    {
+        return UpdateTicketAsync(() => Api.PutAsync<TicketDto>($"{Url}/priority", new ChangePriorityRequest(priority)));
+    }
+
+    private Task ReopenAsync()
+    {
+        return UpdateTicketAsync(() => Api.PostAsync<TicketDto>($"{Url}/reopen", new { }));
+    }
+
+    private async Task StartEditAsync()
+    {
+        if (_categories.Count == 0)
+        {
+            _categories = await Api.GetAsync<List<CategoryDto>>("api/categories");
+        }
+
+        _editTitle = _ticket!.Title;
+        _editDescription = _ticket.Description;
+        _editCategoryId = _ticket.CategoryId;
+        _editing = true;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        var request = new UpdateTicketRequest(_editTitle, _editDescription, _editCategoryId);
+        if (await UpdateTicketAsync(() => Api.PutAsync<TicketDto>(Url, request)))
+        {
+            _editing = false;
+        }
+    }
+
+    /// <summary>
+    /// Runs one change, shows the result and refreshes the history. If the API rejects
+    /// the change (for example an invalid transition), its message is shown and the
+    /// screen keeps the previous values.
+    /// </summary>
+    private async Task<bool> UpdateTicketAsync(Func<Task<TicketDto>> change)
+    {
+        try
+        {
+            _ticket = await change();
+            await LoadCommentsAndHistoryAsync();
+            return true;
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+            return false;
+        }
+    }
+
+    private async Task AddCommentAsync()
+    {
+        try
+        {
+            var comment = await Api.PostAsync<CommentDto>($"{Url}/comments", new AddCommentRequest(_newComment, _newCommentIsInternal));
+
+            // The SignalR event may have refreshed the list already.
+            if (_comments.All(c => c.Id != comment.Id))
+            {
+                _comments.Add(comment);
+            }
+
+            _newComment = string.Empty;
+            _newCommentIsInternal = false;
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        try
+        {
+            await Api.DeleteAsync(Url);
+            Snackbar.Add("Ticket deleted.", Severity.Success);
+            Navigation.NavigateTo("/");
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+    }
+
+    public void Dispose()
+    {
+        Notifications.CommentAdded -= OnCommentAdded;
+    }
+}

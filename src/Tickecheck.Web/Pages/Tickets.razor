@@ -1,0 +1,160 @@
+@page "/"
+@attribute [Authorize]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Tickets - Tickecheck</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Tickets</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/tickets/new"
+               StartIcon="@Icons.Material.Filled.Add">New ticket</MudButton>
+</MudStack>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" md="4">
+            @* DebounceInterval waits until the user stops typing before searching. *@
+            <MudTextField @bind-Value="_text" @bind-Value:after="ReloadAsync" Label="Search in title and description"
+                          DebounceInterval="400" Clearable="true" Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" />
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudSelect T="TicketStatus?" @bind-Value="_status" @bind-Value:after="ReloadAsync" Label="Status" Clearable="true">
+                @foreach (var status in Enum.GetValues<TicketStatus>())
+                {
+                    <MudSelectItem T="TicketStatus?" Value="@status">@Display.Label(status)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" md="2">
+            <MudSelect T="TicketPriority?" @bind-Value="_priority" @bind-Value:after="ReloadAsync" Label="Priority" Clearable="true">
+                @foreach (var priority in Enum.GetValues<TicketPriority>())
+                {
+                    <MudSelectItem T="TicketPriority?" Value="@priority">@priority</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        @if (_agents.Count > 0)
+        {
+            <MudItem xs="12" md="4">
+                <MudSelect T="Guid?" @bind-Value="_agentId" @bind-Value:after="ReloadAsync" Label="Assigned to" Clearable="true">
+                    @foreach (var agent in _agents)
+                    {
+                        <MudSelectItem T="Guid?" Value="@agent.Id">@agent.FullName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+    </MudGrid>
+</MudPaper>
+
+@* ServerData: the table asks for one page at a time, so sorting and paging happen in the database. *@
+<MudTable T="TicketDto" @ref="_table" ServerData="LoadPageAsync" Hover="true" Dense="true" RowsPerPage="10"
+          OnRowClick="OpenTicket" RowStyle="cursor: pointer" Elevation="1">
+    <HeaderContent>
+        <MudTh><MudTableSortLabel T="TicketDto" SortLabel="title">Title</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="TicketDto" SortLabel="status">Status</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="TicketDto" SortLabel="priority">Priority</MudTableSortLabel></MudTh>
+        <MudTh>Category</MudTh>
+        <MudTh>Requester</MudTh>
+        <MudTh>Assigned to</MudTh>
+        <MudTh><MudTableSortLabel T="TicketDto" SortLabel="dueAt">Due</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel T="TicketDto" SortLabel="createdAt" InitialDirection="SortDirection.Descending">Created</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Title">@context.Title</MudTd>
+        <MudTd DataLabel="Status">
+            <MudChip T="string" Size="Size.Small" Color="@Display.ColorOf(context.Status)">@Display.Label(context.Status)</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Priority">
+            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@Display.ColorOf(context.Priority)">@context.Priority</MudChip>
+        </MudTd>
+        <MudTd DataLabel="Category">@context.CategoryName</MudTd>
+        <MudTd DataLabel="Requester">@context.RequesterName</MudTd>
+        <MudTd DataLabel="Assigned to">@(context.AssignedAgentName ?? "Unassigned")</MudTd>
+        <MudTd DataLabel="Due">
+            @Display.Date(context.DueAt)
+            @if (context.IsOverdue)
+            {
+                <MudChip T="string" Size="Size.Small" Color="Color.Error" Class="ml-1">Overdue</MudChip>
+            }
+        </MudTd>
+        <MudTd DataLabel="Created">@Display.Date(context.CreatedAt)</MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No tickets match the filters.</MudText>
+    </NoRecordsContent>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new[] { 10, 20, 50 }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private MudTable<TicketDto> _table = null!;
+    private List<UserDto> _agents = [];
+    private string? _text;
+    private TicketStatus? _status;
+    private TicketPriority? _priority;
+    private Guid? _agentId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = (await AuthState).User;
+
+        if (user.IsInRole(nameof(UserRole.SuperAdmin)))
+        {
+            Navigation.NavigateTo("/tenants");
+            return;
+        }
+
+        // Only staff may list users, so only staff gets the "assigned to" filter.
+        if (user.IsStaff())
+        {
+            var users = await Api.GetAsync<List<UserDto>>("api/users");
+            _agents = users.Where(u => u.Role is UserRole.Agent or UserRole.TenantAdmin).ToList();
+        }
+    }
+
+    private async Task<TableData<TicketDto>> LoadPageAsync(TableState state, CancellationToken cancellationToken)
+    {
+        // TableState pages start at 0; the API pages start at 1.
+        var url = $"api/tickets?page={state.Page + 1}&pageSize={state.PageSize}"
+            + $"&sortBy={state.SortLabel ?? "createdAt"}"
+            + $"&sortDescending={(state.SortDirection != SortDirection.Ascending).ToString().ToLowerInvariant()}";
+
+        if (_status is not null) url += $"&status={_status}";
+        if (_priority is not null) url += $"&priority={_priority}";
+        if (_agentId is not null) url += $"&assignedAgentId={_agentId}";
+        if (!string.IsNullOrWhiteSpace(_text)) url += $"&text={Uri.EscapeDataString(_text)}";
+
+        try
+        {
+            var page = await Api.GetAsync<PagedResult<TicketDto>>(url);
+            return new TableData<TicketDto> { Items = page.Items, TotalItems = page.TotalCount };
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+            return new TableData<TicketDto> { Items = [], TotalItems = 0 };
+        }
+    }
+
+    private Task ReloadAsync()
+    {
+        return _table.ReloadServerData();
+    }
+
+    private void OpenTicket(TableRowClickEventArgs<TicketDto> args)
+    {
+        if (args.Item is not null)
+        {
+            Navigation.NavigateTo($"/tickets/{args.Item.Id}");
+        }
+    }
+}

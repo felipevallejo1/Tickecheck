@@ -1,0 +1,23 @@
+﻿<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        @* AuthorizeRouteView checks the [Authorize] attribute of the page before showing it. *@
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            <NotAuthorized>
+                @if (context.User.Identity?.IsAuthenticated != true)
+                {
+                    <RedirectToLogin />
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning">You do not have access to this page.</MudAlert>
+                }
+            </NotAuthorized>
+        </AuthorizeRouteView>
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <MudAlert Severity="Severity.Info">There is nothing at this address.</MudAlert>
+        </LayoutView>
+    </NotFound>
+</Router>

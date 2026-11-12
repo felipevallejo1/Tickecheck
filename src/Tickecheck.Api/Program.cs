@@ -112,10 +112,20 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// The API also serves the Blazor WebAssembly frontend: its static files (the compiled
+// app and its assets) are returned from here, so there is one site and one origin.
+app.UseBlazorFrameworkFiles();
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationsHub>(NotificationsHub.Path);
+
+// Any other URL (like /tickets/123) is a page of the frontend: return its index.html
+// and let the Blazor router show the right page.
+app.MapFallbackToFile("index.html");
 
 await PrepareDatabaseAsync(app);
 

@@ -1,0 +1,72 @@
+@page "/tickets/new"
+@attribute [Authorize(Roles = "Requester,Agent,TenantAdmin")]
+@inject ApiClient Api
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>New ticket - Tickecheck</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">New ticket</MudText>
+
+<MudPaper Class="pa-6" Elevation="1">
+    <MudTextField @bind-Value="_title" Label="Title" Variant="Variant.Outlined" MaxLength="200" Class="mb-3" />
+    <MudTextField @bind-Value="_description" Label="Description" Variant="Variant.Outlined" Lines="5" MaxLength="4000" Class="mb-3" />
+
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="Guid?" @bind-Value="_categoryId" Label="Category" Variant="Variant.Outlined">
+                @foreach (var category in _categories)
+                {
+                    <MudSelectItem T="Guid?" Value="@category.Id">@category.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect T="TicketPriority" @bind-Value="_priority" Label="Priority" Variant="Variant.Outlined">
+                @foreach (var priority in Enum.GetValues<TicketPriority>())
+                {
+                    <MudSelectItem T="TicketPriority" Value="@priority">@priority</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    <MudStack Row="true" Class="mt-4">
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="CreateAsync">Create ticket</MudButton>
+        <MudButton Variant="Variant.Text" Href="/">Cancel</MudButton>
+    </MudStack>
+</MudPaper>
+
+@code {
+    private List<CategoryDto> _categories = [];
+    private string _title = string.Empty;
+    private string _description = string.Empty;
+    private Guid? _categoryId;
+    private TicketPriority _priority = TicketPriority.Medium;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _categories = await Api.GetAsync<List<CategoryDto>>("api/categories");
+    }
+
+    private async Task CreateAsync()
+    {
+        _busy = true;
+        try
+        {
+            // No validation is repeated here: the API validates and its messages are shown as they come.
+            var request = new CreateTicketRequest(_title, _description, _priority, _categoryId ?? Guid.Empty);
+            var ticket = await Api.PostAsync<TicketDto>("api/tickets", request);
+            Navigation.NavigateTo($"/tickets/{ticket.Id}");
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

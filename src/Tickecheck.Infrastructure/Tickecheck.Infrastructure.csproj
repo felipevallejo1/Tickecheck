@@ -1,13 +1,13 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Tickecheck.Application\Tickecheck.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.10" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.23" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.23" />
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.0.1" />
   </ItemGroup>
 

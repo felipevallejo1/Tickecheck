@@ -1,0 +1,92 @@
+@page "/dashboard"
+@attribute [Authorize(Roles = "Agent,TenantAdmin")]
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Dashboard - Tickecheck</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Dashboard</MudText>
+
+@if (_stats is null)
+{
+    <MudProgressLinear Indeterminate="true" />
+    return;
+}
+
+<MudGrid>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.subtitle2">Total tickets</MudText>
+            <MudText Typo="Typo.h4">@_stats.TotalTickets</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.subtitle2">Overdue</MudText>
+            <MudText Typo="Typo.h4" Color="@(_stats.OverdueTickets > 0 ? Color.Error : Color.Default)">@_stats.OverdueTickets</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="4">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.subtitle2">Average resolution time</MudText>
+            <MudText Typo="Typo.h4">@(_stats.AverageResolutionHours is null ? "-" : $"{_stats.AverageResolutionHours} h")</MudText>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-2">Tickets by status</MudText>
+            <MudSimpleTable Dense="true" Elevation="0">
+                <tbody>
+                    @foreach (var (status, count) in _stats.TicketsByStatus)
+                    {
+                        <tr>
+                            <td><MudChip T="string" Size="Size.Small" Color="@Display.ColorOf(status)">@Display.Label(status)</MudChip></td>
+                            <td style="width: 60%"><MudProgressLinear Value="@Percent(count)" Color="@Display.ColorOf(status)" Size="Size.Large" /></td>
+                            <td style="text-align: right">@count</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudText Typo="Typo.h6" Class="mb-2">Tickets by priority</MudText>
+            <MudSimpleTable Dense="true" Elevation="0">
+                <tbody>
+                    @foreach (var (priority, count) in _stats.TicketsByPriority.OrderByDescending(pair => pair.Key))
+                    {
+                        <tr>
+                            <td><MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" Color="@Display.ColorOf(priority)">@priority</MudChip></td>
+                            <td style="width: 60%"><MudProgressLinear Value="@Percent(count)" Color="@Display.ColorOf(priority)" Size="Size.Large" /></td>
+                            <td style="text-align: right">@count</td>
+                        </tr>
+                    }
+                </tbody>
+            </MudSimpleTable>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private DashboardStatsDto? _stats;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _stats = await Api.GetAsync<DashboardStatsDto>("api/dashboard");
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+    }
+
+    private double Percent(int count)
+    {
+        return _stats!.TotalTickets == 0 ? 0 : count * 100.0 / _stats.TotalTickets;
+    }
+}

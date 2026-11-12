@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Tickecheck.Domain\Tickecheck.Domain.csproj" />
@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="12.2.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.23" />
   </ItemGroup>
 
   <PropertyGroup>

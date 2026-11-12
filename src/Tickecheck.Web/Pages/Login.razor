@@ -1,0 +1,84 @@
+@page "/login"
+@inject AuthService Auth
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in - Tickecheck</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" sm="8" md="5">
+        <MudPaper Class="pa-6" Elevation="2">
+            <MudText Typo="Typo.h5" Class="mb-4">Sign in</MudText>
+
+            <MudTextField @bind-Value="_email" Label="Email" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField @bind-Value="_password" Label="Password" Variant="Variant.Outlined"
+                          InputType="InputType.Password" OnKeyUp="OnKeyUpAsync" Immediate="true" />
+
+            @if (_error is not null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-3">@_error</MudAlert>
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4"
+                       Disabled="_busy" OnClick="SignInAsync">Sign in</MudButton>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 mt-4" Elevation="0" Outlined="true">
+            <MudText Typo="Typo.subtitle2">Demo accounts (password: Demo123!)</MudText>
+            <MudText Typo="Typo.caption">Click one to fill the form.</MudText>
+            <div class="mt-2">
+                @foreach (var account in DemoAccounts)
+                {
+                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => Fill(account))">@account</MudChip>
+                }
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private static readonly string[] DemoAccounts =
+    [
+        "admin@acme.demo", "agent1@acme.demo", "user1@acme.demo",
+        "admin@globex.demo", "agent1@globex.demo", "user1@globex.demo",
+        "superadmin@tickecheck.demo"
+    ];
+
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private string? _error;
+    private bool _busy;
+
+    private void Fill(string email)
+    {
+        _email = email;
+        _password = "Demo123!";
+    }
+
+    private async Task OnKeyUpAsync(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await SignInAsync();
+        }
+    }
+
+    private async Task SignInAsync()
+    {
+        _busy = true;
+        _error = null;
+
+        var signedIn = await Auth.LoginAsync(_email, _password);
+
+        _busy = false;
+        if (!signedIn)
+        {
+            _error = "Invalid email or password.";
+            return;
+        }
+
+        // The platform admin has no tickets: their home is the list of companies.
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        Navigation.NavigateTo(state.User.IsInRole(nameof(UserRole.SuperAdmin)) ? "/tenants" : "/");
+    }
+}

@@ -1,0 +1,72 @@
+@page "/users"
+@attribute [Authorize(Roles = "TenantAdmin")]
+@inject ApiClient Api
+@inject ISnackbar Snackbar
+
+<PageTitle>Users - Tickecheck</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Users</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudText Typo="Typo.h6" Class="mb-2">Add a user</MudText>
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_fullName" Label="Full name" /></MudItem>
+        <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_email" Label="Email" /></MudItem>
+        <MudItem xs="12" sm="6" md="3"><MudTextField @bind-Value="_password" Label="Password (min. 8)" InputType="InputType.Password" /></MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="UserRole" @bind-Value="_role" Label="Role">
+                @foreach (var role in TenantRoles)
+                {
+                    <MudSelectItem T="UserRole" Value="@role">@Display.Label(role)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="1" Class="d-flex align-end">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync">Add</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+<MudTable Items="_users" Dense="true" Hover="true" Elevation="1">
+    <HeaderContent>
+        <MudTh>Name</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Role</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Name">@context.FullName</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Role">@Display.Label(context.Role)</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    // A company admin cannot create platform admins, so that role is not offered.
+    private static readonly UserRole[] TenantRoles = [UserRole.Requester, UserRole.Agent, UserRole.TenantAdmin];
+
+    private List<UserDto> _users = [];
+    private string _fullName = string.Empty;
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+    private UserRole _role = UserRole.Requester;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _users = await Api.GetAsync<List<UserDto>>("api/users");
+    }
+
+    private async Task CreateAsync()
+    {
+        try
+        {
+            var user = await Api.PostAsync<UserDto>("api/users", new CreateUserRequest(_email, _fullName, _password, _role));
+            _users.Add(user);
+            _fullName = _email = _password = string.Empty;
+            Snackbar.Add("User created.", Severity.Success);
+        }
+        catch (ApiException exception)
+        {
+            Snackbar.Add(exception.Message, Severity.Error);
+        }
+    }
+}
