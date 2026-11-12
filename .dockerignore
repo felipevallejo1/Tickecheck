@@ -1,0 +1,11 @@
+**/bin
+**/obj
+.git
+.github
+.vs
+.vscode
+docs
+tests
+TestResults
+coverage
+.env

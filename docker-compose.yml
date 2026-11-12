@@ -1,4 +1,6 @@
-# Local development only. The API is added to this file in a later phase.
+# Local development only.
+#   docker compose up -d sqlserver   -> only the database (run the API with "dotnet run")
+#   docker compose up -d --build     -> database + API + frontend on http://localhost:8080
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -17,6 +19,22 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  api:
+    build: .
+    container_name: tickecheck-api
+    depends_on:
+      sqlserver:
+        # Wait until SQL Server accepts connections, not just until its container starts.
+        condition: service_healthy
+    environment:
+      # Inside the compose network the database is reached by its service name.
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=Tickecheck;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?Create a .env file from .env.example}
+      Database__MigrateOnStartup: "true"
+      Database__SeedDemoData: "true"
+    ports:
+      - "8080:8080"
 
 volumes:
   sqlserver-data:
