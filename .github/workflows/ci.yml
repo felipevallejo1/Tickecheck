@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the .NET SDK pinned in global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      # The integration tests start SQL Server with Testcontainers.
+      # GitHub's Ubuntu runners already have Docker, so nothing else is needed.
+      - name: Test with coverage
+        run: >
+          dotnet test --configuration Release --no-build
+          --settings coverlet.runsettings
+          --collect:"XPlat Code Coverage"
+          --results-directory TestResults
+
+      - name: Merge coverage reports
+        run: |
+          dotnet tool restore
+          dotnet reportgenerator \
+            "-reports:TestResults/**/coverage.cobertura.xml" \
+            "-targetdir:coverage" \
+            "-reporttypes:MarkdownSummaryGithub;JsonSummary;Cobertura"
+
+      - name: Publish coverage in the run summary
+        run: cat coverage/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail if line coverage is below 70%
+        run: |
+          coverage=$(jq '.summary.linecoverage' coverage/Summary.json)
+          echo "Line coverage: ${coverage}%"
+          jq -e '.summary.linecoverage >= 70' coverage/Summary.json > /dev/null
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage

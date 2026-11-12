@@ -1,0 +1,38 @@
+name: Deploy
+
+# Runs after CI passes on main, or manually from the Actions tab.
+# It does nothing until the repository is configured (see docs/DEPLOY.md):
+#   - variable AZURE_WEBAPP_NAME: name of the App Service
+#   - secret AZURE_WEBAPP_PUBLISH_PROFILE: publish profile downloaded from Azure
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Never deploy a commit whose tests failed, and skip quietly while Azure is not configured.
+    if: >
+      vars.AZURE_WEBAPP_NAME != '' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the .NET SDK pinned in global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      # Publishing the Api also builds the Blazor frontend into its wwwroot.
+      - name: Publish
+        run: dotnet publish src/Tickecheck.Api/Tickecheck.Api.csproj --configuration Release --output publish
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: publish
