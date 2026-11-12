@@ -1,6 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Tickecheck.Application.Auth;
+using Tickecheck.Application.Categories;
+using Tickecheck.Application.Comments;
+using Tickecheck.Application.Dashboard;
 using Tickecheck.Application.Tenants;
+using Tickecheck.Application.Tickets;
 using Tickecheck.Application.Users;
 
 namespace Tickecheck.Application;
@@ -25,6 +29,25 @@ public static class DependencyInjection
 
         services.AddScoped<CreateUserHandler>();
         services.AddScoped<GetUsersHandler>();
+
+        services.AddScoped<CreateCategoryHandler>();
+        services.AddScoped<GetCategoriesHandler>();
+
+        services.AddScoped<CreateTicketHandler>();
+        services.AddScoped<GetTicketByIdHandler>();
+        services.AddScoped<SearchTicketsHandler>();
+        services.AddScoped<UpdateTicketHandler>();
+        services.AddScoped<DeleteTicketHandler>();
+        services.AddScoped<AssignTicketHandler>();
+        services.AddScoped<ChangeTicketStatusHandler>();
+        services.AddScoped<ReopenTicketHandler>();
+        services.AddScoped<ChangeTicketPriorityHandler>();
+        services.AddScoped<GetTicketHistoryHandler>();
+
+        services.AddScoped<AddCommentHandler>();
+        services.AddScoped<GetCommentsHandler>();
+
+        services.AddScoped<GetDashboardStatsHandler>();
 
         return services;
     }

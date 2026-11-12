@@ -8,5 +8,6 @@ namespace Tickecheck.Application.Abstractions;
 public interface ICurrentUser
 {
     Guid UserId { get; }
+    string FullName { get; }
     UserRole Role { get; }
 }

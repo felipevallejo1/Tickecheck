@@ -13,6 +13,8 @@ public class HttpCurrentUser(IHttpContextAccessor httpContextAccessor) : ICurren
 {
     public Guid UserId => Guid.Parse(GetClaim(AppClaims.UserId));
 
+    public string FullName => GetClaim(AppClaims.Name);
+
     public UserRole Role => Enum.Parse<UserRole>(GetClaim(AppClaims.Role));
 
     private string GetClaim(string claimType)
