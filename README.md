@@ -1,7 +1,6 @@
 # Tickecheck
 
-<!-- Reemplazá <usuario> por tu usuario de GitHub cuando subas el repositorio. -->
-[![CI](https://github.com/<usuario>/Tickecheck/actions/workflows/ci.yml/badge.svg)](https://github.com/<usuario>/Tickecheck/actions/workflows/ci.yml)
+[![CI](https://github.com/felipevallejo1/Tickecheck/actions/workflows/ci.yml/badge.svg)](https://github.com/felipevallejo1/Tickecheck/actions/workflows/ci.yml)
 ![Cobertura](https://img.shields.io/badge/cobertura-97%25-brightgreen)
 
 Sistema de tickets (helpdesk) **multi-tenant**: varias empresas usan la misma instalación y cada
