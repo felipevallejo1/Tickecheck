@@ -11,7 +11,9 @@ WebAssembly.
 Es un proyecto de portfolio pensado para poder leerse y explicarse: cada decisión importante
 tiene su registro en [docs/decisions](docs/decisions) y hay una [guía de estudio](docs/STUDY.md).
 
-**Demo:** todavía no está desplegada. Los pasos están en [docs/DEPLOY.md](docs/DEPLOY.md).
+**Demo:** no hay una instancia pública. La aplicación completa se levanta en local con un solo
+comando de Docker (ver [Cómo correrlo](#cómo-correrlo)). El deploy en Azure está automatizado y
+documentado en [docs/DEPLOY.md](docs/DEPLOY.md), pero no fue ejecutado.
 
 ## Qué hace
 
